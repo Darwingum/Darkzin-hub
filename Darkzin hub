@@ -1,0 +1,141 @@
+local player = game.Players.LocalPlayer
+local rs = game:GetService("RunService")
+local guiService = player:WaitForChild("PlayerGui")
+
+local basePos = CFrame.new(0,5,0)
+local teleportEnabled = true
+local espEnabled = true
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BrainrotHUD"
+screenGui.Parent = guiService
+
+local function createButton(name, position)
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.Size = UDim2.new(0,140,0,40)
+	button.Position = position
+	button.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	button.TextColor3 = Color3.fromRGB(255,255,255)
+	button.TextScaled = true
+	button.Font = Enum.Font.GothamBold
+	button.Text = name .. ": ON"
+	button.AutoButtonColor = true
+	button.Parent = screenGui
+	return button
+end
+
+local teleportButton = createButton("Teleport", UDim2.new(0,10,0,10))
+local espButton = createButton("ESP", UDim2.new(0,10,0,60))
+
+teleportButton.MouseButton1Click:Connect(function()
+	teleportEnabled = not teleportEnabled
+	teleportButton.Text = "Teleport: " .. (teleportEnabled and "ON" or "OFF")
+	teleportButton.BackgroundColor3 = teleportEnabled and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
+end)
+
+espButton.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	espButton.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
+	espButton.BackgroundColor3 = espEnabled and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
+end)
+
+rs.Heartbeat:Connect(function()
+	if teleportEnabled and player.Character and player.Backpack:FindFirstChild("Brainrot") then
+		player.Character.HumanoidRootPart.CFrame = basePos
+	end
+end)
+
+local function addESP(playerTarget)
+	if playerTarget == player then return end
+	playerTarget.CharacterAdded:Connect(function(character)
+		rs.Heartbeat:Wait()
+
+		local highlight = Instance.new("Highlight")
+		highlight.FillColor = Color3.fromRGB(255,0,0)
+		highlight.OutlineColor = Color3.fromRGB(0,0,0)
+		highlight.Parent = character
+
+		local head = character:WaitForChild("Head")
+		local billboard = Instance.new("BillboardGui")
+		billboard.Size = UDim2.new(0,200,0,50)
+		billboard.Adornee = head
+		billboard.AlwaysOnTop = true
+		billboard.Parent = head
+
+		local textLabel = Instance.new("TextLabel")
+		textLabel.Size = UDim2.new(1,0,1,0)
+		textLabel.BackgroundTransparency = 1
+		textLabel.Font = Enum.Font.GothamBold
+		textLabel.TextScaled = true
+		textLabel.TextStrokeTransparency = 0.5
+		textLabel.Parent = billboard
+
+		rs.Heartbeat:Connect(function()
+			if espEnabled then
+				local timer = playerTarget:FindFirstChild("Timer") and playerTarget.Timer.Value or "?"
+				textLabel.Text = playerTarget.Name .. " | Timer: " .. tostring(timer)
+				highlight.Enabled = true
+				billboard.Enabled = true
+				highlight.FillTransparency = 0.5 + math.sin(tick()*3)/4
+			else
+				highlight.Enabled = false
+				billboard.Enabled = false
+			end
+		end)
+	end)
+end
+
+for _, plr in pairs(game.Players:GetPlayers()) do
+	addESP(plr)
+end
+game.Players.PlayerAdded:Connect(addESP)
+
+local bestHighlight
+local bestValueLabel = Instance.new("TextLabel")
+bestValueLabel.Size = UDim2.new(0,200,0,40)
+bestValueLabel.Position = UDim2.new(0.5,-100,0,10)
+bestValueLabel.BackgroundTransparency = 0.3
+bestValueLabel.BackgroundColor3 = Color3.fromRGB(0,0,0)
+bestValueLabel.TextColor3 = Color3.fromRGB(0,255,0)
+bestValueLabel.TextScaled = true
+bestValueLabel.Font = Enum.Font.GothamBold
+bestValueLabel.Text = "Best Brainrot: 0"
+bestValueLabel.Parent = screenGui
+
+local function updateBestBrainrot()
+	if not espEnabled then
+		if bestHighlight then bestHighlight.Enabled = false end
+		bestValueLabel.Visible = false
+		return
+	end
+
+	bestValueLabel.Visible = true
+	local best, bestVal = nil, -math.huge
+	for _, obj in pairs(workspace:GetChildren()) do
+		if obj.Name == "Brainrot" and obj:FindFirstChild("Value") then
+			if obj.Value.Value > bestVal then
+				best = obj
+				bestVal = obj.Value.Value
+			end
+		end
+	end
+
+	if best then
+		if bestHighlight then bestHighlight:Destroy() end
+		local highlight = Instance.new("Highlight")
+		highlight.FillColor = Color3.fromRGB(0,255,0)
+		highlight.OutlineColor = Color3.fromRGB(255,255,255)
+		highlight.Parent = best
+		bestHighlight = highlight
+
+		bestValueLabel.Text = "Best Brainrot: " .. bestVal
+	end
+end
+
+task.spawn(function()
+	while true do
+		updateBestBrainrot()
+		task.wait(1)
+	end
+end)
